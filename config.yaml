@@ -1,0 +1,66 @@
+# ─────────────────────────────────────────────
+#  Regression Model – Configuration
+# ─────────────────────────────────────────────
+
+# Input data
+data:
+  files:
+    - "C:/Users/m.zortea/Documents/timeseries_etl/data/sommacampagna/csv_incl/*.parquet"
+    - "C:/Users/m.zortea/Documents/timeseries_etl/data/sommacampagna/csv_est/*.parquet"
+    - "C:/Users/m.zortea/Documents/timeseries_etl/data/sommacampagna/csv_spost/*.parquet"
+    - "C:/Users/m.zortea/Documents/timeseries_etl/data/sommacampagna/csv_temp/*.parquet"
+
+  time_column: "time" # colonna timestamp
+  tmp_suffix: "_t" # suffisso sensori temperatura (feature)
+  exclude_columns: # colonne da escludere dalla lista sensori target
+    - "dt"
+    - "time"
+    - "month"
+    - "hour"
+
+# Colonne da usare nel modello
+# Se vuoti, vengono scelti automaticamente il primo tmp e il primo sensore
+features:
+  input: "" # es. "temp_ext_t"  – lascia vuoto per auto
+  target: "" # es. "sensor_01"  – lascia vuoto per auto
+
+# Algoritmi da eseguire (true/false)
+algorithms:
+  linear_regression: true # LR semplice (un solo punto temporale)
+  multiple_linear_regression: true # MLR con lag temporali
+
+# Parametri MLR
+mlr:
+  - config1:
+    resample_freq: "15min" # frequenza di ricampionamento (es. "1H", "30T", "6H")
+    max_lag: 96 # numero massimo di lag (in unità di resample_freq)
+  - config2:
+    resample_freq: "30min" # frequenza di ricampionamento (es. "1H", "30T", "6H")
+    max_lag: 48 # numero massimo di lag (in unità di resample_freq)
+  - config3:
+    resample_freq: "1h" # frequenza di ricampionamento (es. "1H", "30T", "6H")
+    max_lag: 24 # numero massimo di lag (in unità di resample_freq)
+  - config4:
+    resample_freq: "2h" # frequenza di ricampionamento (es. "1H", "30T", "6H")
+    max_lag: 12 # numero massimo di lag (in unità di resample_freq)
+  - config5:
+    resample_freq: "4h" # frequenza di ricampionamento (es. "1H", "30T", "6H")
+    max_lag: 6 # numero massimo di lag (in unità di resample_freq)
+  - config6:
+    resample_freq: "8h" # frequenza di ricampionamento (es. "1H", "30T", "6H")
+    max_lag: 3 # numero massimo di lag (in unità di resample_freq)
+  - config7:
+    resample_freq: "12h" # frequenza di ricampionamento (es. "1H", "30T", "6H")
+    max_lag: 2 # numero massimo di lag (in unità di resample_freq)
+  - config8:
+    resample_freq: "1d" # frequenza di ricampionamento (es. "1H", "30T", "6H")
+    max_lag: 1
+  - config9:
+    resample_freq: "2d" # frequenza di ricampionamento (es. "1H", "30T", "6H")
+    max_lag: 0
+
+# Output
+output:
+  show_plots: true
+  save_plots: false
+  plot_dir: "output/plots"
