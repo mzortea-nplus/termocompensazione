@@ -12,6 +12,8 @@ import pandas as pd
 
 from src.config import AppConfig
 
+MY_CONST = 2
+
 
 def load_data(cfg: AppConfig) -> Tuple[pd.DataFrame, List[str], List[str]]:
     """
@@ -82,7 +84,6 @@ def load_data(cfg: AppConfig) -> Tuple[pd.DataFrame, List[str], List[str]]:
                 f"Feature input '{cfg.features.input}' non trovata nel dataset."
             )
         tmp_sensors = [cfg.features.input]
-
     if cfg.features.target:
         if cfg.features.target not in df.columns:
             raise ValueError(
