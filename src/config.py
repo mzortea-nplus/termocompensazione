@@ -4,10 +4,12 @@ Carica e valida il file YAML di configurazione.
 """
 
 from __future__ import annotations
-import yaml
+
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List, Optional
+
+import yaml
 
 
 @dataclass
@@ -27,6 +29,11 @@ class FeaturesConfig:
 
 
 @dataclass
+class DebugConfig:
+    debug_mode: bool = True
+
+
+@dataclass
 class AlgorithmsConfig:
     linear_regression: bool = True
     multiple_linear_regression: bool = True
@@ -34,7 +41,7 @@ class AlgorithmsConfig:
 
 @dataclass
 class MLRConfig:
-    resample_freq: str = "1H"
+    lag_time: str = "1h"
     max_lag: int = 10
     window: int = 10
 
@@ -51,8 +58,9 @@ class AppConfig:
     data: DataConfig
     features: FeaturesConfig
     algorithms: AlgorithmsConfig
-    mlr: list[MLRConfig]
+    mlr: MLRConfig
     output: OutputConfig
+    debug: DebugConfig
 
 
 def load_config(path: str | Path = "config.yaml") -> AppConfig:
@@ -75,6 +83,12 @@ def load_config(path: str | Path = "config.yaml") -> AppConfig:
     if not data.files:
         raise ValueError("'data.files' non può essere vuoto nel config.")
 
+    # Debug
+    debug_raw = raw.get("debug", {})
+    debug_config = DebugConfig(
+        debug_mode=debug_raw.get("debug_mode", True),
+    )
+
     # Features
     feat_raw = raw.get("features", {})
     features = FeaturesConfig(
@@ -90,16 +104,13 @@ def load_config(path: str | Path = "config.yaml") -> AppConfig:
     )
 
     # MLR params
-    mlr_raw = raw.get("mlr", {})
-    mlr_configs = []
-    for config in mlr_raw:
-        mlr_configs.append(
-            MLRConfig(
-                resample_freq=config.get("resample_freq"),
-                max_lag=config.get("max_lag"),
-                window=config.get("window"),
-            )
-        )
+    config = raw.get("mlr", {})
+    mlr_config = MLRConfig(
+        lag_time=config.get("lag_time"),
+        max_lag=config.get("max_lag"),
+        window=config.get("window"),
+    )
+
     # Output
     out_raw = raw.get("output", {})
     output = OutputConfig(
@@ -112,6 +123,7 @@ def load_config(path: str | Path = "config.yaml") -> AppConfig:
         data=data,
         features=features,
         algorithms=algorithms,
-        mlr=mlr_configs,
+        mlr=mlr_config,
         output=output,
+        debug=debug_config,
     )
