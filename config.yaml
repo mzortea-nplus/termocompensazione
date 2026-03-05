@@ -20,10 +20,6 @@ data:
 
 debug_mode: true
 
-features:
-  input: ""
-  target: ""
-
 algorithms:
   multiple_linear_regression: true
 
