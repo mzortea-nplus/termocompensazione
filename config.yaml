@@ -27,9 +27,9 @@ features:
 algorithms:
   multiple_linear_regression: true
 
-mlr:
+model:
   lag_time: "15min"
-  n_steps: 288
+  max_lag: "48h"
 
 output:
   show_plots: false

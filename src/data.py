@@ -91,8 +91,4 @@ def load_data(cfg: AppConfig) -> Tuple[pd.DataFrame, List[str], List[str]]:
             )
         sensors = [cfg.features.target]
 
-    # ── 7. Imputa NaN con la media di colonna ─────────────────────────────
-    numeric_cols = df.select_dtypes(include="number").columns
-    df[numeric_cols] = df[numeric_cols].fillna(df[numeric_cols].mean())
-
     return df, tmp_sensors, sensors

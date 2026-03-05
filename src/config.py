@@ -40,10 +40,9 @@ class AlgorithmsConfig:
 
 
 @dataclass
-class MLRConfig:
+class ModelConfig:
     lag_time: str = "1h"
-    max_lag: int = 10
-    window: int = 10
+    max_lag: str = "48h"
 
 
 @dataclass
@@ -58,7 +57,7 @@ class AppConfig:
     data: DataConfig
     features: FeaturesConfig
     algorithms: AlgorithmsConfig
-    mlr: MLRConfig
+    model: ModelConfig
     output: OutputConfig
     debug: DebugConfig
 
@@ -103,12 +102,11 @@ def load_config(path: str | Path = "config.yaml") -> AppConfig:
         multiple_linear_regression=alg_raw.get("multiple_linear_regression", True),
     )
 
-    # MLR params
-    config = raw.get("mlr", {})
-    mlr_config = MLRConfig(
-        lag_time=config.get("lag_time"),
-        max_lag=config.get("max_lag"),
-        window=config.get("window"),
+    # Model params
+    model_raw = raw.get("model", {})
+    model_config = ModelConfig(
+        lag_time=model_raw.get("lag_time"),
+        max_lag=model_raw.get("max_lag"),
     )
 
     # Output
@@ -123,7 +121,7 @@ def load_config(path: str | Path = "config.yaml") -> AppConfig:
         data=data,
         features=features,
         algorithms=algorithms,
-        mlr=mlr_config,
+        model=model_config,
         output=output,
         debug=debug_config,
     )
