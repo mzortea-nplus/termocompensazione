@@ -1,46 +1,46 @@
 import mlflow
 
-from src.config import load_config
 from src.data import load_data
-from src.models import model_training, model_prediction, model_evaluation
+from src.models import model_training, model_evaluation
 import numpy as np
+import yaml
 
-cfg = load_config("config.yaml")  # Load base configuration
+with open("config.yaml", "r") as f:
+    cfg = yaml.safe_load(f)
 
-compute_steps_allowed = lambda lag, freq: int(
-    round(float(lag.replace("h", "")) / float(freq.replace("h", "")))
-)
+df, tmp_sensors, sensors = load_data(cfg["data"])
+df = df.sort_values(by="time").reset_index(drop=True)
 
-for lag_h in ["3h", "12h", "48h"]:
-    for freq in ["0.25h", "0.5h", "1h"]:
-        steps_allowed = compute_steps_allowed(lag_h, freq)
-        print(f"MLR Test {lag_h} {freq} {steps_allowed}")
+lag_time = cfg["algorithms"][0]["params"]["lag_time"]
+max_lag = cfg["algorithms"][0]["params"]["max_lag"]
+dt = df["time"].diff().dt.total_seconds().mode()[0]
 
-        df, tmp_sensors, sensors = load_data(cfg)
-        df = df.sort_values(by="time").reset_index(drop=True)
+for s in sensors:
+    print(f"Training model for {s}")
+    model_params = {
+        "lag_time": lag_time,
+        "max_lag": max_lag,
+        "dt": dt,
+    }
+    print("Nans", df[s].isna().sum())
+    df[s] = df[s].fillna(df[s].mean())
+    model = model_training(
+        df=df,
+        tmp_cols=tmp_sensors,
+        sig_col=s,
+        time_col=cfg["data"]["time_column"],
+        model_str=cfg["algorithms"][0]["algorithm"],
+        model_params=model_params,
+    )
 
-        for s in sensors:
-            print(f"Training model for {s}")
-            model_params = cfg.model.__dict__.copy()
-            model_params["dt"] = df["time"].diff().dt.total_seconds().mode()[0]
-            model = model_training(
-                df=df,
-                tmp_cols=tmp_sensors,
-                sig_col=s,
-                time_col=cfg.data.time_column,
-                model_str="MLR",
-                model_params=model_params,
-            )
+    metrics, predictions, t_data, y_data = model_evaluation(
+        model=model,
+        xdata=df[tmp_sensors].to_numpy(),
+        ydata=df[s].to_numpy(),
+        tdata=df["time"].to_numpy(),
+        debug_mode=cfg["debug_mode"] if "debug_mode" in cfg else False,
+        filename=f"debug_{cfg['algorithms'][0]['algorithm']}.png",
+    )
 
-            scores, predictions, t_data, y_data = model_evaluation(
-                model=model,
-                xdata=df[tmp_sensors].to_numpy(),
-                ydata=df[s].to_numpy(),
-                tdata=df["time"].to_numpy(),
-                debug_mode=cfg.debug.debug_mode,
-                model_params={"max_lag_n": model.features_builder.max_lag_n},
-            )
-
-            for key, value in scores.items():
-                print(f"{key}: {value}")
-            print("--------------------------------")
+    print("Metrics", metrics)
+    print("--------------------------------")

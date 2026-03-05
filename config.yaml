@@ -21,11 +21,10 @@ data:
 debug_mode: true
 
 algorithms:
-  multiple_linear_regression: true
-
-model:
-  lag_time: "15min"
-  max_lag: "48h"
+  - algorithm: "MLR"
+    params:
+      lag_time: "15min"
+      max_lag: "48h"
 
 output:
   show_plots: false
