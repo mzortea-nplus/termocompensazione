@@ -1,5 +1,3 @@
-import mlflow
-
 from src.data import load_data
 from src.models import model_training, model_evaluation
 import numpy as np
