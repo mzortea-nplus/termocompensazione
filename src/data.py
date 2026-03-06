@@ -153,6 +153,7 @@ def load_data(
         _set_s3_credentials(conn, key, secret, region)
 
     _create_merged_view(conn, files, tc)
+    print("Data view created")
 
     # Query config: prefer explicit query_config, else cfg["query"]
     q = query_config if query_config is not None else cfg.get("query", {})

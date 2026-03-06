@@ -80,10 +80,9 @@ def run_pipeline(
 
     # View + time window (no materialization); pass AWS key/secret if provided
     full_cfg = cfg.to_dict()
-    df, tmp_sensors, sensors = load_data(
-        full_cfg, aws_credentials=aws_credentials
-    )
+    df, tmp_sensors, sensors = load_data(full_cfg, aws_credentials=aws_credentials)
     df = df.sort_values(by=cfg.data.time_column).reset_index(drop=True)
+    print("Data loaded")
 
     # Sampling interval for MLR
     dt = df[cfg.data.time_column].diff().dt.total_seconds()
@@ -97,6 +96,9 @@ def run_pipeline(
         params["dt"] = dt_val
 
         for sensor in sensors:
+
+            print(f"Training model for {sensor}")
+
             # Impute NaNs for this sensor (model expects no NaN in y)
             df_work = df.copy()
             if df_work[sensor].isna().any():
@@ -118,7 +120,9 @@ def run_pipeline(
                 ydata=df_work[sensor].to_numpy(),
                 tdata=df_work[cfg.data.time_column].to_numpy(),
                 debug_mode=cfg.debug_mode,
-                filename=str(Path(cfg.output.plot_dir) / f"debug_{model_str}_{sensor}.png"),
+                filename=str(
+                    Path(cfg.output.plot_dir) / f"debug_{model_str}_{sensor}.png"
+                ),
             )
 
             row = {
