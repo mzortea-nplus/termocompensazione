@@ -18,6 +18,7 @@ for lag_h in ["3h", "12h", "48h"]:
 
         df, tmp_sensors, sensors = load_data(cfg)
         df = df.sort_values(by="time").reset_index(drop=True)
+        
 
         for s in sensors:
             print(f"Training model for {s}")
