@@ -7,6 +7,7 @@ Returns a pandas DataFrame for that window plus tmp_sensors and sensors lists.
 
 from __future__ import annotations
 
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 
@@ -94,17 +95,14 @@ def _create_merged_view(
 
 def _time_filter_sql(
     time_column: str,
-    last_n_days: Union[float, None] = None,
-    start_time: Union[str, None] = None,
-    end_time: Union[str, None] = None,
+    start_time: Optional[str] = None,
+    end_time: Optional[str] = None,
 ) -> str:
-    """Return SQL WHERE fragment for time window (no leading WHERE)."""
+    """Return SQL WHERE fragment for time window (literal bounds only; no subquery)."""
     if start_time is not None and end_time is not None:
         st = _escape_sql_string(start_time)
         et = _escape_sql_string(end_time)
         return f"CAST({time_column} AS TIMESTAMP) >= CAST('{st}' AS TIMESTAMP) AND CAST({time_column} AS TIMESTAMP) <= CAST('{et}' AS TIMESTAMP)"
-    if last_n_days is not None:
-        return f"CAST({time_column} AS TIMESTAMP) > (SELECT max(CAST({time_column} AS TIMESTAMP)) FROM merged_data) - INTERVAL '{int(last_n_days)} days'"
     return "1=1"
 
 
@@ -153,9 +151,9 @@ def load_data(
         _set_s3_credentials(conn, key, secret, region)
 
     _create_merged_view(conn, files, tc)
-    print("Data view created")
 
     # Query config: prefer explicit query_config, else cfg["query"]
+    # Use literal start/end bounds only (no subquery) so DuckDB can do a single pass + predicate pushdown
     q = query_config if query_config is not None else cfg.get("query", {})
     if not isinstance(q, dict):
         q = {}
@@ -163,9 +161,21 @@ def load_data(
     start_time = q.get("start_time")
     end_time = q.get("end_time")
 
-    where = _time_filter_sql(
-        tc, last_n_days=last_n_days, start_time=start_time, end_time=end_time
-    )
+    # Resolve "now" and last_n_days to literal timestamps (avoids slow SELECT max(...) FROM view)
+    if isinstance(end_time, str) and end_time.strip().lower() == "now":
+        end_time = datetime.now(timezone.utc).isoformat()
+    if last_n_days is not None and (start_time is None or end_time is None):
+        end_ts = datetime.now(timezone.utc)
+        if end_time is not None and end_time.strip().lower() != "now":
+            try:
+                end_ts = pd.Timestamp(end_time).to_pydatetime()
+            except Exception:
+                pass
+        start_ts = end_ts - timedelta(days=float(last_n_days))
+        start_time = start_ts.isoformat()
+        end_time = end_ts.isoformat()
+
+    where = _time_filter_sql(tc, start_time=start_time, end_time=end_time)
     sql = f"SELECT * FROM merged_data WHERE {where} ORDER BY {tc}"
     df = conn.execute(sql).df()
     conn.close()

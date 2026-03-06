@@ -18,12 +18,10 @@ data:
     - "hour"
     - "datetime"
 
-# Time window for SELECT from view (only one style used)
-# Use s3://bucket/prefix/*.parquet in data.files for S3
+# Time window: literal bounds only (single pass, faster). last_n_days = last N days up to now.
 query:
   last_n_days: 7
-  # start_time: null
-  # end_time: null
+  # Or: start_time: "2024-01-01T00:00:00", end_time: "2024-01-08T00:00:00"
 
 debug_mode: true
 

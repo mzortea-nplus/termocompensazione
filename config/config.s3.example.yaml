@@ -25,8 +25,10 @@ data:
     - "hour"
     - "datetime"
 
+# Time window: use literal bounds (single pass over S3, faster). last_n_days = "last N days up to now".
 query:
   last_n_days: 7
+  # Or set explicit range: start_time: "2024-01-01T00:00:00", end_time: "2024-01-08T00:00:00"
 
 debug_mode: true
 
