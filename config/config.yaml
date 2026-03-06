@@ -4,10 +4,10 @@
 
 data:
   files:
-    - "C:/Users/matte/Desktop/NPlus/Git/termocompensazione/data/csv_est/*.parquet"
-    - "C:/Users/matte/Desktop/NPlus/Git/termocompensazione/data/csv_incl/*.parquet"
-    - "C:/Users/matte/Desktop/NPlus/Git/termocompensazione/data/csv_spost/*.parquet"
-    - "C:/Users/matte/Desktop/NPlus/Git/termocompensazione/data/csv_temp/*.parquet"
+    - "C:/Users/m.zortea/Documents/timeseries_etl/data/sommacampagna/csv_est/*.parquet"
+    - "C:/Users/m.zortea/Documents/timeseries_etl/data/sommacampagna/csv_incl/*.parquet"
+    - "C:/Users/m.zortea/Documents/timeseries_etl/data/sommacampagna/csv_spost/*.parquet"
+    - "C:/Users/m.zortea/Documents/timeseries_etl/data/sommacampagna/csv_temp/*.parquet"
 
   time_column: "time"
   tmp_suffix: "_t"
@@ -17,6 +17,13 @@ data:
     - "month"
     - "hour"
     - "datetime"
+
+# Time window for SELECT from view (only one style used)
+# Use s3://bucket/prefix/*.parquet in data.files for S3
+query:
+  last_n_days: 7
+  # start_time: null
+  # end_time: null
 
 debug_mode: true
 
@@ -30,3 +37,4 @@ output:
   show_plots: false
   save_plots: true
   plot_dir: "output/plots"
+  results_path: "output/results.parquet"

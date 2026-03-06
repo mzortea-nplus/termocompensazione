@@ -1,0 +1,11 @@
+# Data and ML
+duckdb>=0.9.0
+pandas>=2.0.0
+scikit-learn>=1.3.0
+pyarrow>=14.0.0
+
+# Config
+pyyaml>=6.0
+
+# Orchestration (optional, for 15-min schedule)
+prefect>=2.14.0

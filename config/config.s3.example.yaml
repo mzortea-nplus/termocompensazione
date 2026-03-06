@@ -1,0 +1,35 @@
+# Example config for data in AWS S3.
+# Copy to config/config.yaml or pass as: python run_pipeline.py config/config.s3.yaml
+# Set AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION before running.
+
+data:
+  files:
+    - "s3://YOUR-BUCKET/your-prefix/csv_est/*.parquet"
+    - "s3://YOUR-BUCKET/your-prefix/csv_incl/*.parquet"
+    - "s3://YOUR-BUCKET/your-prefix/csv_spost/*.parquet"
+    - "s3://YOUR-BUCKET/your-prefix/csv_temp/*.parquet"
+  time_column: "time"
+  tmp_suffix: "_t"
+  exclude_columns:
+    - "dt"
+    - "time"
+    - "month"
+    - "hour"
+    - "datetime"
+
+query:
+  last_n_days: 7
+
+debug_mode: true
+
+algorithms:
+  - algorithm: "MLR"
+    params:
+      lag_time: "15min"
+      max_lag: "48h"
+
+output:
+  show_plots: false
+  save_plots: true
+  plot_dir: "output/plots"
+  results_path: "output/results.parquet"
