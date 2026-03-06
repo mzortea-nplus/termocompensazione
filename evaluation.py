@@ -2,6 +2,7 @@ from src.data import load_data
 from src.models import model_training, model_evaluation
 import numpy as np
 import yaml
+import pandas as pd
 
 with open("config.yaml", "r") as f:
     cfg = yaml.safe_load(f)
@@ -13,6 +14,7 @@ lag_time = cfg["algorithms"][0]["params"]["lag_time"]
 max_lag = cfg["algorithms"][0]["params"]["max_lag"]
 dt = df["time"].diff().dt.total_seconds().mode()[0]
 
+all_metrics = []
 for s in sensors:
     print(f"Training model for {s}")
     model_params = {
@@ -39,6 +41,10 @@ for s in sensors:
         debug_mode=cfg["debug_mode"] if "debug_mode" in cfg else False,
         filename=f"debug_{cfg['algorithms'][0]['algorithm']}.png",
     )
-
+    metrics["sensor"] = s
+    all_metrics.append(metrics)
     print("Metrics", metrics)
     print("--------------------------------")
+
+all_metrics_df = pd.DataFrame(all_metrics)
+all_metrics_df.to_csv("all_metrics.csv", index=False)
