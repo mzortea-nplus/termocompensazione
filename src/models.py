@@ -85,7 +85,7 @@ def model_training(
         features_builder = MLRFeaturesBuilder(
             lag_time=model_params["lag_time"],
             max_lag=model_params["max_lag"],
-            dt=model_params["dt"],
+            dt=model_params.get("dt", None),
         )
     else:
         raise ValueError(f"Model {model_str} not supported")
@@ -125,6 +125,7 @@ def model_evaluation(
     tdata: np.ndarray,
     debug_mode: bool = False,
     model_params: dict = None,
+    filename: str = "debug.png",
 ) -> tuple[dict, np.ndarray, np.ndarray, np.ndarray]:
     """
     Evaluate the model performance.
@@ -133,17 +134,17 @@ def model_evaluation(
     predictions = model_prediction(model, xdata)
 
     if debug_mode:
-        plt.plot(t_data, y_data, label="True")
-        plt.plot(t_data, predictions, label="Predicted")
+        plt.plot(tdata, ydata, label="True")
+        plt.plot(tdata[-len(predictions) :], predictions, label="Predicted")
         plt.legend()
-        plt.savefig(f"debug_{model.name}.png")
+        plt.savefig(filename)
         plt.close()
 
     metrics = {
-        "mse": mean_squared_error(y_data, predictions),
-        "r2": r2_score(y_data, predictions),
-        "mae": mean_absolute_error(y_data, predictions),
-        "msle": mean_squared_log_error(y_data, predictions),
+        "mse": mean_squared_error(ydata[-len(predictions) :], predictions),
+        "r2": r2_score(ydata[-len(predictions) :], predictions),
+        "mae": mean_absolute_error(ydata[-len(predictions) :], predictions),
+        "msle": mean_squared_log_error(ydata[-len(predictions) :], predictions),
     }
 
-    return metrics, predictions, t_data, y_data
+    return metrics, predictions, tdata, ydata
