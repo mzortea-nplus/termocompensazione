@@ -4,10 +4,10 @@
 
 data:
   files:
-    - "C:/Users/m.zortea/Documents/timeseries_etl/data/sommacampagna/csv_incl/*.parquet"
-    - "C:/Users/m.zortea/Documents/timeseries_etl/data/sommacampagna/csv_est/*.parquet"
-    - "C:/Users/m.zortea/Documents/timeseries_etl/data/sommacampagna/csv_spost/*.parquet"
-    - "C:/Users/m.zortea/Documents/timeseries_etl/data/sommacampagna/csv_temp/*.parquet"
+    - "C:/Users/matte/Desktop/NPlus/Git/termocompensazione/data/csv_est/*.parquet"
+    - "C:/Users/matte/Desktop/NPlus/Git/termocompensazione/data/csv_incl/*.parquet"
+    - "C:/Users/matte/Desktop/NPlus/Git/termocompensazione/data/csv_spost/*.parquet"
+    - "C:/Users/matte/Desktop/NPlus/Git/termocompensazione/data/csv_temp/*.parquet"
 
   time_column: "time"
   tmp_suffix: "_t"
