@@ -1,6 +1,6 @@
 # data files
 *.parquet
-*.packaging
+*.png
 *.csv
 
 # Byte-compiled / optimized / DLL files

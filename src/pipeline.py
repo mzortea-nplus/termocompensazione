@@ -58,10 +58,14 @@ def run_pipeline(
     *,
     save_results: bool = True,
     append_results: bool = True,
+    aws_credentials: Any = None,
 ) -> List[dict]:
     """
     Load config, create DuckDB view and SELECT time window, train and evaluate
     for each sensor and algorithm, return and optionally save metrics.
+
+    aws_credentials: optional dict with access_key_id, secret_access_key, region (for S3).
+                     Overrides config aws section if provided.
 
     Returns:
         List of result dicts (one per sensor per algorithm) with run_id, run_timestamp,
@@ -74,9 +78,11 @@ def run_pipeline(
     if cfg.output.save_plots or cfg.debug_mode:
         _ensure_results_dir(cfg.output.plot_dir)
 
-    # View + time window (no materialization)
+    # View + time window (no materialization); pass AWS key/secret if provided
     full_cfg = cfg.to_dict()
-    df, tmp_sensors, sensors = load_data(full_cfg)
+    df, tmp_sensors, sensors = load_data(
+        full_cfg, aws_credentials=aws_credentials
+    )
     df = df.sort_values(by=cfg.data.time_column).reset_index(drop=True)
 
     # Sampling interval for MLR

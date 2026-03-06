@@ -62,7 +62,24 @@ data:
 
 2. **Set AWS credentials** (one of):
 
-   - **Environment variables** (e.g. in PowerShell before running):
+   - **Key and secret as parameters** (config or CLI):
+
+     In `config/config.yaml` (or your S3 config), add an `aws` section:
+
+     ```yaml
+     aws:
+       access_key_id: "YOUR_ACCESS_KEY"
+       secret_access_key: "YOUR_SECRET_KEY"
+       region: "eu-west-1"
+     ```
+
+     Or pass them on the command line (CLI overrides config):
+
+     ```bash
+     python run_pipeline.py --aws-access-key-id KEY --aws-secret-access-key SECRET --aws-region eu-west-1
+     ```
+
+   - **Environment variables** (e.g. in PowerShell):
 
      ```powershell
      $env:AWS_ACCESS_KEY_ID = "your-access-key"
@@ -71,11 +88,7 @@ data:
      python run_pipeline.py
      ```
 
-     Or in Bash: `export AWS_ACCESS_KEY_ID=... AWS_SECRET_ACCESS_KEY=... AWS_REGION=eu-west-1`
-
-   - **IAM role** – If the script runs on EC2/ECS/Lambda with an IAM role, no env vars needed; DuckDB httpfs uses the default credential chain.
-
-   - **AWS CLI profile** – After `aws configure`, you can use the default profile; on some setups you may need to create an S3 secret in DuckDB (see DuckDB httpfs docs).
+   - **IAM role** – On EC2/ECS/Lambda with an IAM role, no config or env needed; DuckDB uses the default credential chain.
 
 3. **Run the pipeline** – Same as local:
 

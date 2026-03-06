@@ -8,7 +8,7 @@ Returns a pandas DataFrame for that window plus tmp_sensors and sensors lists.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import List, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import duckdb
 import pandas as pd
@@ -22,6 +22,23 @@ def _ensure_httpfs(conn: duckdb.DuckDBPyConnection, file_paths: List[str]) -> No
     if any(_is_s3(p) for p in file_paths):
         conn.execute("INSTALL httpfs")
         conn.execute("LOAD httpfs")
+
+
+def _set_s3_credentials(
+    conn: duckdb.DuckDBPyConnection,
+    access_key_id: str,
+    secret_access_key: str,
+    region: Optional[str] = None,
+) -> None:
+    """Configure DuckDB to use the given AWS key and secret for S3 (CREATE SECRET)."""
+    key_esc = access_key_id.replace("'", "''")
+    secret_esc = secret_access_key.replace("'", "''")
+    region_val = region or "us-east-1"
+    region_esc = region_val.replace("'", "''")
+    conn.execute(
+        f"CREATE OR REPLACE SECRET s3_creds (TYPE s3, PROVIDER config, "
+        f"KEY_ID '{key_esc}', SECRET '{secret_esc}', REGION '{region_esc}')"
+    )
 
 
 def _read_fn_and_path(path: str) -> Tuple[str, str]:
@@ -94,13 +111,16 @@ def _time_filter_sql(
 def load_data(
     cfg: dict,
     query_config: Union[dict, None] = None,
+    aws_credentials: Optional[Dict[str, Any]] = None,
 ) -> Tuple[pd.DataFrame, List[str], List[str]]:
     """
     View-only: create DuckDB VIEW over S3/local paths (merge on time), then
     SELECT only the configured time window. No materialization.
 
-    cfg: data config dict with keys: files, time_column, tmp_suffix, exclude_columns.
+    cfg: data config dict with keys: files, time_column, tmp_suffix, exclude_columns;
+         may include "aws" with access_key_id, secret_access_key, region.
     query_config: optional dict with last_n_days, start_time, end_time (overrides cfg.query if present).
+    aws_credentials: optional dict with access_key_id, secret_access_key, region (overrides cfg.aws if present).
 
     Returns:
         df: DataFrame for the time window only
@@ -120,6 +140,18 @@ def load_data(
 
     conn = duckdb.connect(database=":memory:")
     _ensure_httpfs(conn, files)
+
+    # S3 credentials: param overrides config
+    aws = aws_credentials if aws_credentials is not None else cfg.get("aws") or {}
+    if isinstance(aws, dict):
+        key = aws.get("access_key_id")
+        secret = aws.get("secret_access_key")
+        region = aws.get("region")
+    else:
+        key = secret = region = None
+    if key and secret and any(_is_s3(p) for p in files):
+        _set_s3_credentials(conn, key, secret, region)
+
     _create_merged_view(conn, files, tc)
 
     # Query config: prefer explicit query_config, else cfg["query"]

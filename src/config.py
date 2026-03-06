@@ -53,6 +53,15 @@ class OutputConfig:
 
 
 @dataclass
+class AwsConfig:
+    """Optional AWS credentials for S3 (key and secret as parameters)."""
+
+    access_key_id: Optional[str] = None
+    secret_access_key: Optional[str] = None
+    region: Optional[str] = None
+
+
+@dataclass
 class AppConfig:
     """Full application configuration."""
 
@@ -60,6 +69,7 @@ class AppConfig:
     query: QueryConfig
     algorithms: List[AlgorithmConfig]
     output: OutputConfig
+    aws: AwsConfig = field(default_factory=AwsConfig)
     debug_mode: bool = False
 
     def to_dict(self) -> dict:
@@ -85,6 +95,11 @@ class AppConfig:
                 "save_plots": self.output.save_plots,
                 "plot_dir": self.output.plot_dir,
                 "results_path": self.output.results_path,
+            },
+            "aws": {
+                "access_key_id": self.aws.access_key_id,
+                "secret_access_key": self.aws.secret_access_key,
+                "region": self.aws.region,
             },
             "debug_mode": self.debug_mode,
         }
@@ -137,10 +152,19 @@ def load_config(path: str | Path = "config/config.yaml") -> AppConfig:
         results_path=out.get("results_path", "output/results.parquet"),
     )
 
+    # AWS (optional: key and secret as parameters for S3)
+    aws_raw = raw.get("aws", {}) or {}
+    aws = AwsConfig(
+        access_key_id=aws_raw.get("access_key_id"),
+        secret_access_key=aws_raw.get("secret_access_key"),
+        region=aws_raw.get("region"),
+    )
+
     return AppConfig(
         data=data,
         query=query,
         algorithms=algorithms,
         output=output,
+        aws=aws,
         debug_mode=raw.get("debug_mode", False),
     )

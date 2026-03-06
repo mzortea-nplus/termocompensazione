@@ -1,6 +1,14 @@
 # Example config for data in AWS S3.
 # Copy to config/config.yaml or pass as: python run_pipeline.py config/config.s3.yaml
-# Set AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION before running.
+#
+# AWS credentials: set here (key/secret as parameters) and/or pass via CLI:
+#   python run_pipeline.py --aws-access-key-id KEY --aws-secret-access-key SECRET [--aws-region REGION]
+# CLI overrides config. If neither is set, env vars (AWS_ACCESS_KEY_ID etc.) are used.
+
+# aws:
+#   access_key_id: "YOUR_ACCESS_KEY"
+#   secret_access_key: "YOUR_SECRET_KEY"
+#   region: "eu-west-1"
 
 data:
   files:
