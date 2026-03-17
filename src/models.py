@@ -18,7 +18,7 @@ from sklearn.metrics import (
     mean_absolute_error,
     mean_squared_log_error,
 )
-from matplotlib import pyplot as plt
+from sklearn.compose import TransformedTargetRegressor, make_column_transformer
 from sklearn.pipeline import Pipeline
 from sklearn.base import BaseEstimator, TransformerMixin
 
@@ -81,12 +81,19 @@ def model_training(
     else:
         tmp_col = tmp_cols[0]
 
+    xdata = df[tmp_col].to_numpy().reshape(-1, 1)
+
     if model_str == "MLR":
         features_builder = MLRFeaturesBuilder(
             lag_time=model_params["lag_time"],
             max_lag=model_params["max_lag"],
             dt=model_params.get("dt", None),
         )
+        ydata = df[sig_col].to_numpy()[features_builder.max_lag_n :]
+
+    elif model_str == "LR":
+        features_builder = None
+        ydata = df[sig_col].to_numpy()
     else:
         raise ValueError(f"Model {model_str} not supported")
 
@@ -98,53 +105,31 @@ def model_training(
         ]
     )
 
-    xdata = df[tmp_col].to_numpy().reshape(-1, 1)
-    ydata = df[sig_col].to_numpy()[features_builder.max_lag_n :]
-
     training_pipeline.fit(xdata, ydata)
     return training_pipeline
 
 
-def model_prediction(
-    model: Pipeline,
-    xdata: np.ndarray,
-) -> np.ndarray:
-    """
-    WARNING
-    Since MLR include lagged features, data will be truncated and reshaped.
-    This is already built-in in the code: features are reshaped by the features builder,
-    while time and temperature must be handled externally.
-    """
-    return model.predict(xdata)
-
-
 def model_evaluation(
     model: Pipeline,
+    model_str: str,
     xdata: np.ndarray,
     ydata: np.ndarray,
     tdata: np.ndarray,
-    debug_mode: bool = False,
-    model_params: dict = None,
-    filename: str = "debug.png",
 ) -> tuple[dict, np.ndarray, np.ndarray, np.ndarray]:
     """
     Evaluate the model performance.
     """
-
-    predictions = model_prediction(model, xdata)
-
-    if debug_mode:
-        plt.plot(tdata, ydata, label="True")
-        plt.plot(tdata[-len(predictions) :], predictions, label="Predicted")
-        plt.legend()
-        plt.savefig(filename)
-        plt.close()
+    predictions = model.predict(xdata)
+    if model_str == "MLR":
+        n = len(predictions)
+        ydata = ydata[-n:]
+        tdata = tdata[-n:]
 
     metrics = {
-        "mse": mean_squared_error(ydata[-len(predictions) :], predictions),
-        "r2": r2_score(ydata[-len(predictions) :], predictions),
-        "mae": mean_absolute_error(ydata[-len(predictions) :], predictions),
-        "msle": mean_squared_log_error(ydata[-len(predictions) :], predictions),
+        "mse": mean_squared_error(ydata, predictions),
+        "r2": r2_score(ydata, predictions),
+        "mae": mean_absolute_error(ydata, predictions),
+        "msle": mean_squared_log_error(ydata, predictions),
     }
 
-    return metrics, predictions, tdata, ydata
+    return metrics
