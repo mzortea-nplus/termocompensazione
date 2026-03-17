@@ -27,48 +27,29 @@ def start_s3_connection(conn: duckdb.DuckDBPyConnection, s3_cfg: dict[str, Any])
     """
     Configure DuckDB httpfs for S3 access.
 
-    Intended for AWS EC2:
-    - default uses credential chain (instance profile, env, config)
-    - optional explicit key/secret if provided in config
+    Explicit credentials only (no credential chain).
     """
     _ensure_httpfs(conn)
 
     region = s3_cfg.get("region", "eu-central-1")
-    provider = s3_cfg.get("provider", "credential_chain")
-
-    if provider == "config":
-        key_id = s3_cfg.get("key_id")
-        secret = s3_cfg.get("secret")
-        session_token = s3_cfg.get("session_token")
-        if not key_id or not secret:
-            raise ValueError("S3 provider 'config' requires data.s3.key_id and data.s3.secret")
-
-        token_sql = f", SESSION_TOKEN '{session_token}'" if session_token else ""
-        conn.execute(
-            f"""
-            CREATE OR REPLACE SECRET s3_secret (
-                TYPE s3,
-                PROVIDER config,
-                KEY_ID '{key_id}',
-                SECRET '{secret}'{token_sql},
-                REGION '{region}'
-            )
-            """
+    key_id = s3_cfg.get("key_id")
+    secret = s3_cfg.get("secret")
+    session_token = s3_cfg.get("session_token")
+    if not key_id or not secret:
+        raise ValueError(
+            "Missing S3 credentials. Provide data.s3.key_id and data.s3.secret "
+            "(or pass them via CLI in evaluation.py)."
         )
-        return
 
-    # EC2-friendly default: instance profile + env + ~/.aws/config, etc.
-    # VALIDATION 'none' avoids failing at creation time if creds are not available yet.
-    chain = s3_cfg.get("chain", "instance;env;config")
-    validation = s3_cfg.get("validation", "none")
+    token_sql = f", SESSION_TOKEN '{session_token}'" if session_token else ""
     conn.execute(
         f"""
         CREATE OR REPLACE SECRET s3_secret (
             TYPE s3,
-            PROVIDER credential_chain,
-            CHAIN '{chain}',
-            REGION '{region}',
-            VALIDATION '{validation}'
+            PROVIDER config,
+            KEY_ID '{key_id}',
+            SECRET '{secret}'{token_sql},
+            REGION '{region}'
         )
         """
     )
@@ -95,7 +76,12 @@ def load_data(cfg: dict) -> Tuple[pd.DataFrame, List[str], List[str]]:
     for i, file_path in enumerate(cfg["files"]):
         view_name = f"csv_{i}"
         path_lower = str(file_path).lower()
-        read_function = "read_parquet" if ".parquet" in path_lower else "read_csv"
+        # If it's an S3 path, enforce parquet (also supports globs/prefixes without .parquet)
+        read_function = (
+            "read_parquet"
+            if _is_s3_path(str(file_path)) or "s3" in path_lower or ".parquet" in path_lower
+            else "read_csv"
+        )
         try:
             conn.execute(
                 f"CREATE VIEW {view_name} AS SELECT * FROM {read_function}('{file_path}')"
