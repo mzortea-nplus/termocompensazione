@@ -4,13 +4,74 @@ Legge i file CSV specificati nel config e li carica in un database
 DuckDB in-memory. Restituisce un DataFrame pandas pronto per i modelli.
 """
 
-from pathlib import Path
-from typing import List, Tuple
+from __future__ import annotations
+
+from typing import Any, List, Tuple
 
 import duckdb
 import pandas as pd
 
 MY_CONST = 2
+
+
+def _is_s3_path(path: str) -> bool:
+    return path.strip().lower().startswith("s3://")
+
+
+def _ensure_httpfs(conn: duckdb.DuckDBPyConnection) -> None:
+    conn.execute("INSTALL httpfs")
+    conn.execute("LOAD httpfs")
+
+
+def start_s3_connection(conn: duckdb.DuckDBPyConnection, s3_cfg: dict[str, Any]) -> None:
+    """
+    Configure DuckDB httpfs for S3 access.
+
+    Intended for AWS EC2:
+    - default uses credential chain (instance profile, env, config)
+    - optional explicit key/secret if provided in config
+    """
+    _ensure_httpfs(conn)
+
+    region = s3_cfg.get("region", "eu-central-1")
+    provider = s3_cfg.get("provider", "credential_chain")
+
+    if provider == "config":
+        key_id = s3_cfg.get("key_id")
+        secret = s3_cfg.get("secret")
+        session_token = s3_cfg.get("session_token")
+        if not key_id or not secret:
+            raise ValueError("S3 provider 'config' requires data.s3.key_id and data.s3.secret")
+
+        token_sql = f", SESSION_TOKEN '{session_token}'" if session_token else ""
+        conn.execute(
+            f"""
+            CREATE OR REPLACE SECRET s3_secret (
+                TYPE s3,
+                PROVIDER config,
+                KEY_ID '{key_id}',
+                SECRET '{secret}'{token_sql},
+                REGION '{region}'
+            )
+            """
+        )
+        return
+
+    # EC2-friendly default: instance profile + env + ~/.aws/config, etc.
+    # VALIDATION 'none' avoids failing at creation time if creds are not available yet.
+    chain = s3_cfg.get("chain", "instance;env;config")
+    validation = s3_cfg.get("validation", "none")
+    conn.execute(
+        f"""
+        CREATE OR REPLACE SECRET s3_secret (
+            TYPE s3,
+            PROVIDER credential_chain,
+            CHAIN '{chain}',
+            REGION '{region}',
+            VALIDATION '{validation}'
+        )
+        """
+    )
 
 
 def load_data(cfg: dict) -> Tuple[pd.DataFrame, List[str], List[str]]:
@@ -23,16 +84,21 @@ def load_data(cfg: dict) -> Tuple[pd.DataFrame, List[str], List[str]]:
     # ── 1. Connessione in memoria ──────────────────────────────────────────
     conn = duckdb.connect(database=":memory:")
 
+    # ── 1b. Optional S3 configuration (EC2 friendly) ───────────────────────
+    files = cfg.get("files", [])
+    if any(_is_s3_path(p) for p in files):
+        start_s3_connection(conn, cfg.get("s3", {}))
+
     # ── 2. Carica ogni CSV come vista, poi JOIN su time (come all_static.sql) ─
     tc = cfg["time_column"]
     views: List[str] = []
     for i, file_path in enumerate(cfg["files"]):
-        p = Path(file_path)
         view_name = f"csv_{i}"
-        read_function = "read_parquet" if p.suffix == ".parquet" else "read_csv"
+        path_lower = str(file_path).lower()
+        read_function = "read_parquet" if ".parquet" in path_lower else "read_csv"
         try:
             conn.execute(
-                f"CREATE VIEW {view_name} AS SELECT * FROM {read_function}('{p.as_posix()}')"
+                f"CREATE VIEW {view_name} AS SELECT * FROM {read_function}('{file_path}')"
             )
         except Exception as e:
             print(f"Error: {e}")
@@ -69,7 +135,7 @@ def load_data(cfg: dict) -> Tuple[pd.DataFrame, List[str], List[str]]:
     sensors = [c for c in df.columns if c not in cfg["exclude_columns"] + tmp_sensors]
 
     if not tmp_sensors:
-        raise ValueError(f"Nessuna colonna con suffisso '{cfg["tmp_suffix"]}' trovata.")
+        raise ValueError(f"Nessuna colonna con suffisso '{cfg['tmp_suffix']}' trovata.")
     elif len(tmp_sensors) > 1:
         raise ValueError("Only one temperature column is supported")
     if not sensors:

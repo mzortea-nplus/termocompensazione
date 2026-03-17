@@ -3,13 +3,33 @@ from src.models import model_training, model_evaluation
 import numpy as np
 import yaml
 import pandas as pd
-import mlflow
+import argparse
 
-mlflow.set_tracking_uri("http://localhost:5000")
-experiment = mlflow.set_experiment("test")
 
-with open("config.yaml", "r") as f:
+parser = argparse.ArgumentParser(description="Train/evaluate models")
+parser.add_argument("--config", default="config.yaml", help="Path to config YAML")
+parser.add_argument("--s3-key-id", default=None, help="AWS access key id for DuckDB S3")
+parser.add_argument("--s3-secret", default=None, help="AWS secret access key for DuckDB S3")
+parser.add_argument("--s3-session-token", default=None, help="AWS session token (optional)")
+parser.add_argument("--s3-region", default=None, help="AWS region override (optional)")
+args = parser.parse_args()
+
+with open(args.config, "r") as f:
     cfg = yaml.safe_load(f)
+
+# Allow passing S3 credentials externally (CLI), without using credential chain.
+data_cfg = cfg.setdefault("data", {})
+s3_cfg = data_cfg.setdefault("s3", {})
+if args.s3_key_id or args.s3_secret or args.s3_session_token or args.s3_region:
+    s3_cfg["provider"] = "config"
+if args.s3_key_id:
+    s3_cfg["key_id"] = args.s3_key_id
+if args.s3_secret:
+    s3_cfg["secret"] = args.s3_secret
+if args.s3_session_token:
+    s3_cfg["session_token"] = args.s3_session_token
+if args.s3_region:
+    s3_cfg["region"] = args.s3_region
 
 _df, tmp_sensors, sensors = load_data(cfg["data"])
 _df = _df.sort_values(by="time").reset_index(drop=True)
@@ -26,46 +46,37 @@ for algorithm in cfg["algorithms"]:
     tmp_data = df[tmp_sensors].to_numpy()
 
     for s in sensors:
-        with mlflow.start_run(
-            run_name=f"{algorithm['algorithm']}_{s}",
-            experiment_id=experiment.experiment_id,
-        ):
-            mlflow.log_params(algorithm["params"])
-            mlflow.log_params({"sensor": s})
-            mlflow.log_params({"algorithm": algorithm["algorithm"]})
-            print(f"Training model for {s}")
-            print("Nans", df[s].isna().sum())
-            df[s] = df[s].fillna(df[s].mean())
-            params = algorithm["params"]
-            params["dt"] = delta_t
 
-            model = model_training(
-                df=df,
-                tmp_cols=tmp_sensors,
-                sig_col=s,
-                time_col=cfg["data"]["time_column"],
-                model_str=algorithm["algorithm"],
-                model_params=params,
-            )
+        print(f"Training model for {s}")
+        print("Nans", df[s].isna().sum())
+        df[s] = df[s].fillna(df[s].mean())
+        params = algorithm["params"]
+        params["dt"] = delta_t
 
-            metrics = model_evaluation(
-                model=model,
-                model_str=algorithm["algorithm"],
-                xdata=tmp_data,
-                ydata=df[s].to_numpy(),
-                tdata=df[cfg["data"]["time_column"]].to_numpy(),
-            )
-            for key, value in metrics.items():
-                mlflow.log_metric(key, value)
-            metrics["sensor"] = s
-            metrics["algorithm"] = algorithm["algorithm"]
-            metrics["params"] = params
-            all_metrics.append(metrics)
+        model = model_training(
+            df=df,
+            tmp_cols=tmp_sensors,
+            sig_col=s,
+            time_col=cfg["data"]["time_column"],
+            model_str=algorithm["algorithm"],
+            model_params=params,
+        )
 
-            print("Metrics", metrics)
-            print("--------------------------------")
+        metrics = model_evaluation(
+            model=model,
+            model_str=algorithm["algorithm"],
+            xdata=tmp_data,
+            ydata=df[s].to_numpy(),
+            tdata=df[cfg["data"]["time_column"]].to_numpy(),
+        )
+        metrics["sensor"] = s
+        metrics["algorithm"] = algorithm["algorithm"]
+        metrics["params"] = params
+        all_metrics.append(metrics)
+
+        print("Metrics", metrics)
+        print("--------------------------------")
 
 
 all_metrics_df = pd.DataFrame(all_metrics)
 all_metrics_df.to_csv("all_metrics.csv", index=False)
-mlflow.end_run()

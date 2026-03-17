@@ -4,10 +4,18 @@
 
 data:
   files:
-    - "C:/Users/matte/Desktop/NPlus/Git/termocompensazione/data/csv_est/*.parquet"
-    - "C:/Users/matte/Desktop/NPlus/Git/termocompensazione/data/csv_incl/*.parquet"
-    - "C:/Users/matte/Desktop/NPlus/Git/termocompensazione/data/csv_spost/*.parquet"
-    - "C:/Users/matte/Desktop/NPlus/Git/termocompensazione/data/csv_temp/*.parquet"
+    - "s3://vittorio-field-data/field_data/A4/P001/tmp/*.parquet"
+    - "s3://vittorio-field-data/field_data/A4/P001/str/*.parquet"
+    - "s3://vittorio-field-data/field_data/A4/P001/dsp/*.parquet"
+
+  # S3 access for DuckDB httpfs (AWS EC2 friendly defaults)
+  # - Uses explicit credentials passed via CLI or filled here (no credential chain)
+  s3:
+    region: "eu-central-1"
+    provider: "config"             # pass --s3-key-id / --s3-secret, or fill below
+    # key_id: ""
+    # secret: ""
+    # session_token: ""
 
   time_column: "time"
   tmp_suffix: "_t"
@@ -25,6 +33,17 @@ algorithms:
     params:
       lag_time: "15min"
       max_lag: "48h"
+  - algorithm: "MLR"
+    params:
+      lag_time: "30min"
+      max_lag: "48h"
+  - algorithm: "MLR"
+    params:
+      lag_time: "15min"
+      max_lag: "72h"
+  - algorithm: "LR"
+    params:
+      hour: 4
 
 output:
   show_plots: false
